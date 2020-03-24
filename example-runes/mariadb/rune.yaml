@@ -1,0 +1,25 @@
+- name: mariadb
+  command: ["/mariadb"]
+  args: ["--foo"]
+  environment:
+    MYSQL_ROOT_PASSWORD: "{{ state.config.root_password }}"
+    MYSQL_DATABASE: "{{ state.config.database }}"
+    MYSQL_USER: "{{ state.config.user }}"
+    MYSQL_PASSWORD: "{{ state.config.password }}"
+  image:
+    build: build/
+  ports:
+    - name: mariadb
+      containerPort: "{{ state.config.port }}"
+  include:
+    kubernetes:
+      readinessProbe:
+        httpGet:
+          path: /example/check
+          port: 5000
+        initialDelaySeconds: 30
+        periodSeconds: 30
+    aws:
+      # Include some custom CloudFormation template stuff here
+    gce:
+      # Include some custom Cloud Deployment Manager template stuff here

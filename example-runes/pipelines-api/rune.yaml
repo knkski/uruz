@@ -1,0 +1,19 @@
+- name: pipelines-api
+  command: ["/pipelines-api"]
+  args: ["--foo"]
+  environment:
+    MYSQL_SERVICE_HOST: "{{ state.relations.mysql.juju.host }}"
+    MYSQL_SERVICE_PORT: "{{ state.relations.mysql.config.port }}"
+    MYSQL_SERVICE_USER: "{{ state.relations.mysql.config.user }}"
+    MYSQL_SERVICE_PASS: "{{ state.relations.mysql.config.password }}"
+    MINIO_SERVICE_SERVICE_HOST: "{{ state.relations.minio.juju.host }}"
+    MINIO_SERVICE_SERVICE_PORT: "{{ state.relations.minio.config.port }}"
+    POD_NAMESPACE: "{{ state.juju.model_name }}"
+    InitConnectionTimeout: "{{ state.config.timeout }}"
+  image:
+    source: gcr.io/ml-pipeline/api-server:0.1.14
+  ports:
+    - name: grpc
+      containerPort: "{{ state.config.grpc_port }}"
+    - name: http
+      containerPort: "{{ state.config.http_port }}"

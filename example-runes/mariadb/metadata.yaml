@@ -1,0 +1,51 @@
+name: mariadb
+description: |
+  MariaDB - A GPLed, community-developed fork of MySQL
+
+  Some long description of MariaDB
+
+repo: https://github.com/juju-solutions/bundle-kubeflow.git
+maintainers: [Juju Developers <juju@lists.ubuntu.com>]
+tags:
+  - database
+  - k8s
+  - kubernetes
+  - openstack
+
+series:
+  - aws
+  - gce
+  - kubernetes
+
+provides:
+  - name: mysql
+    interface: mysql
+
+dependencies:
+  mysql-connector-python: ^8.0
+
+# See react_noop in rune.py
+# If this value is left unset, Juju defaults to applying the config
+# change and restarting the service with the updated configuration
+react: react_noop
+
+config:
+  root-password:
+    description: Password for the root user
+    type: secret
+    source:
+      type: generate
+  database:
+    description: Database name
+    type: string
+    default: mysql-db
+  user:
+    description: Regular user name
+    type: string
+    default: 'mysql-user'
+  password:
+    description: Regular user password
+    type: secret
+    source:
+      type: env
+      file: .env

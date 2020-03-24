@@ -1,0 +1,22 @@
+[package]
+name = "libruned"
+version = "0.1.0"
+authors = ["Kenneth Koski <kenneth.koski@canonical.com>"]
+edition = "2018"
+
+[dependencies]
+async-std = "1.5"
+rune = { path = "../librune" }
+crossbeam-channel = "0.4"
+futures = "0.3"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+sled = "0.31"
+tokio = { version = "0.2", features = ["full"] }
+uuid = { version = "0.8", features = ["serde", "v4"] }
+warp = "0.2"
+
+[dev-dependencies]
+reqwest = { version = "0.10", features = ["json"] }
+tempfile = "3"

@@ -1,0 +1,42 @@
+name: pipelines-api
+description: |
+  Kubeflow Pipelines API - Machine learning workflows in Kubernetes
+
+  Kubeflow Pipelines is a platform for building and deploying portable,
+  scalable machine learning (ML) workflows based on Docker containers.
+
+repo: https://github.com/juju-solutions/bundle-kubeflow.git
+maintainers:
+  - Juju Developers <juju@lists.ubuntu.com>
+tags:
+  - ai
+  - bigdata
+  - kubeflow
+  - machine-learning
+  - tensorflow
+
+series: [kubernetes]
+
+requires:
+  - name: mysql
+    interface: mysql
+    min: 1
+    max: 1
+  - name: minio
+    interface: http
+    min: 1
+    max: 1
+
+provides:
+  - name: pipelines-api
+    interface: http
+
+config:
+  grpc-port:
+    type: integer
+    default: 8887
+    description: The port that the GRPC service will listen to
+  http-port:
+    type: integer
+    default: 8888
+    description: The port that the HTTP service will listen to

@@ -1,0 +1,12 @@
+[package]
+name = "erilaz"
+version = "0.1.0"
+authors = ["Kenneth Koski <kenneth.koski@canonical.com>"]
+edition = "2018"
+
+[dependencies]
+futures = "0.3"
+libruned = { path = "../libruned/" }
+sled = "0.31"
+tokio = { version = "0.2", features = ["full"] }
+warp = "0.2"

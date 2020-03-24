@@ -1,0 +1,51 @@
+bundle: kubernetes
+
+volumes:
+  # Define a volume with all default options that is backed by the
+  # storage system appropriate to the cloud
+  mysql:
+  # Not used below, but shows how someone would define shared storage
+  example-shared:
+    type: write-shared
+
+# The first 3 applications are defined fairly closely to how they
+# are now, the main exception being that we can attach volumes to
+# arbitrary locations in the rune.
+applications:
+  mariadb:
+    rune: cs:~kubeflow-charmers/mariadb-k8s
+    source: ./mariadb
+    scale: 1
+    annotations:
+      gui-x: '0'
+      gui-y: '100'
+    volumes:
+      - mysql:/var/lib/mysql
+  pipelines-api:
+    rune: cs:~kubeflow-charmers/pipelines-api
+    source: ./pipelines-api
+    scale: 1
+    annotations:
+      gui-x: '100'
+      gui-y: '0'
+  pipelines-ui:
+    rune: cs:~kubeflow-charmers/pipelines-ui
+    source: ./pipelines-ui
+    scale: 1
+    annotations:
+      gui-x: '100'
+      gui-y: '100'
+  # Manages renewing the HTTPS certificate for pipelines-ui, by updating its
+  # configuration with new certs every so often
+  certbot:
+    rune: cs:~kubeflow-charmers/certbot
+    source: ./certbot
+    scale: 1
+    annotations:
+      gui-x: '0'
+      gui-y: '0'
+
+relations:
+- [pipelines-api, mariadb]
+- [pipelines-api, pipelines-ui]
+- [pipelines-ui, certbot]

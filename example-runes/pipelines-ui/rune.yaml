@@ -1,0 +1,20 @@
+- name: pipelines-ui
+  command: ["/pipelines-ui"]
+  args: ["--foo"]
+  environment:
+    API_SERVICE_HOST: "{{ state.relations.pipelines-api.juju.host }}"
+    API_SERVICE_PORT: "{{ state.relations.pipelines-api.config.port }}"
+  image:
+    source: gcr.io/ml-pipeline/frontend:0.1.14
+  ports:
+    - name: http
+      containerPort: "{{ state.config.port }}"
+  volumes:
+    - name: private-key
+      type: config
+      config-key: private-key
+      mount-path: /privkey.pem
+    - name: full-chain
+      type: config
+      config-key: full-chain
+      mount-path: /fullchain.pem

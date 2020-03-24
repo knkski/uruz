@@ -1,0 +1,30 @@
+name: certbot
+description: |
+  Certbot - Automatically enable HTTPS on your website
+
+  Automatically enable HTTPS on your website with EFF's Certbot,
+  deploying Let's Encrypt certificates.
+
+repo: https://github.com/juju-solutions/bundle-kubeflow.git
+maintainers:
+  - Juju Developers <juju@lists.ubuntu.com>
+tags:
+  - https
+  - certbot
+  - certificate-renewal
+
+series:
+  - aws
+  - gce
+  - kubernetes
+
+provides:
+  - name: cert-renewal
+
+config:
+  username:
+    type: string
+    description: Let's Encrypt username
+  password:
+    type: string
+    description: Let's Encrypt password

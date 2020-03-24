@@ -1,0 +1,50 @@
+name: pipelines-ui
+description: |
+  Kubeflow Pipelines UI - Machine learning workflows in Kubernetes
+
+  Kubeflow Pipelines is a platform for building and deploying portable,
+  scalable machine learning (ML) workflows based on Docker containers.
+
+repo: https://github.com/juju-solutions/bundle-kubeflow.git
+maintainers:
+  - Juju Developers <juju@lists.ubuntu.com>
+tags:
+  - ai
+  - bigdata
+  - kubeflow
+  - machine-learning
+  - tensorflow
+
+series: [kubernetes]
+
+requires:
+  - name: pipelines-api
+    interface: http
+  - name: cert-renewal
+    interface: http
+    min: 0
+
+provides:
+  - name: pipelines-ui
+    interface: http
+
+config:
+  port:
+    type: integer
+    default: 8080
+    description: The port to listen to
+  https:
+    type: boolean
+    default: true
+    description: Whether or not the UI will use HTTPS
+  certificates:
+    type: archive
+    description: Archive of server certificates, in Let's Encrypt format
+  private-key:
+    type: secret
+    description: HTTPS private key
+    transformer: private_key  # See transformers.py
+  full-chain:
+    type: secret
+    description: All HTTPS certificates
+    transformer: full_chain  # See transformers.py

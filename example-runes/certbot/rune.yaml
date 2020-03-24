@@ -1,0 +1,6 @@
+- name: certbot
+  environment:
+    CERTBOT_USERNAME: {{ state.config.username }}
+    CERTBOT_PASSWORD: {{ state.config.password }}
+  image:
+    source: certbot/certbot:v0.29.1
