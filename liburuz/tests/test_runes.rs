@@ -1,4 +1,4 @@
-use rune::Rune;
+use liburuz::Rune;
 
 #[test]
 fn parse_rune() {

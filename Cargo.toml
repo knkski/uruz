@@ -1,2 +1,2 @@
 [workspace]
-members = ["librune", "libruned", "rune-cli", "erilaz"]
+members = ["liburuz", "liburuzd", "uruz"]

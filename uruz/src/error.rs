@@ -1,4 +1,4 @@
-use rune::error::Error as RuneError;
+use liburuz::error::Error as RuneError;
 use std::io::Error as IOError;
 
 #[derive(Debug)]

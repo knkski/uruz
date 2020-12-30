@@ -1,15 +1,16 @@
+pub mod api;
 pub mod error;
 pub mod metadata;
 pub mod template;
 
 use crate::error::Error;
-use metadata::Metadata;
+use crate::metadata::Metadata;
+use crate::template::Template;
 use serde_derive::{Deserialize, Serialize};
 use serde_yaml::{from_slice, to_vec};
 use std::fs::read;
 use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
-use template::Template;
 use zip::write::FileOptions;
 use zip::ZipWriter;
 

@@ -1,0 +1,9 @@
+[package]
+name = "uruz"
+version = "0.1.0"
+authors = ["Kenneth Koski"]
+edition = "2018"
+
+[dependencies]
+structopt = "0.3"
+liburuz = { path = "../liburuz/" }
