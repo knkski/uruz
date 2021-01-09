@@ -2,13 +2,13 @@ pub mod aws;
 pub mod dummy;
 pub mod kubernetes;
 
-use crate::error::Error;
-use crate::model::{Action, Active, Completed};
+use crate::server::error::Error;
+use crate::server::model::{Action, Active, Completed};
 use serde_derive::{Deserialize, Serialize};
 use std::future::Future;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub enum Cloud {
     AWS,
     Dummy,
@@ -24,13 +24,8 @@ pub enum ModelState {
 }
 
 impl Cloud {
-    pub fn from_name(name: &str) -> Result<Self, Error> {
-        match name {
-            "aws" => Ok(Self::AWS),
-            "dummy" => Ok(Self::Dummy),
-            "kubernetes" => Ok(Self::Kubernetes),
-            _ => Err(Error::UnknownCloud(format!("Unknown cloud {}", name))),
-        }
+    pub fn from_str(name: &str) -> Result<Self, Error> {
+        Cloud::from_bytes(name.as_bytes())
     }
 
     pub fn from_bytes(name: &[u8]) -> Result<Self, Error> {
@@ -49,11 +44,13 @@ impl Cloud {
         let cloud = self.clone();
         async move {
             match (cloud, request.get_action()) {
-                (Self::AWS, Action::CreateModel { name: _ }) => unimplemented!(),
-                (Self::AWS, Action::ConfigureModel { foo: _ }) => unimplemented!(),
-                (Self::AWS, Action::DestroyModel) => unimplemented!(),
-                (Self::AWS, Action::AddRune) => unimplemented!(),
-                (Self::AWS, Action::RemoveRune) => unimplemented!(),
+                (Self::AWS, Action::CreateModel { name }) => self::aws::create_model(name).await?,
+                (Self::AWS, Action::ConfigureModel { foo: _ }) => {
+                    self::aws::configure_model().await?
+                }
+                (Self::AWS, Action::DestroyModel) => self::aws::destroy_model().await?,
+                (Self::AWS, Action::AddRune) => self::aws::add_rune().await?,
+                (Self::AWS, Action::RemoveRune) => self::aws::remove_rune().await?,
                 (Self::Dummy, Action::CreateModel { name }) => {
                     self::dummy::create_model(name).await?
                 }
@@ -66,10 +63,14 @@ impl Cloud {
                 (Self::Kubernetes, Action::CreateModel { name }) => {
                     self::kubernetes::create_model(name).await?
                 }
-                (Self::Kubernetes, Action::ConfigureModel { foo: _ }) => unimplemented!(),
-                (Self::Kubernetes, Action::DestroyModel) => unimplemented!(),
-                (Self::Kubernetes, Action::AddRune) => unimplemented!(),
-                (Self::Kubernetes, Action::RemoveRune) => unimplemented!(),
+                (Self::Kubernetes, Action::ConfigureModel { foo: _ }) => {
+                    self::kubernetes::configure_model().await?
+                }
+                (Self::Kubernetes, Action::DestroyModel) => {
+                    self::kubernetes::destroy_model().await?
+                }
+                (Self::Kubernetes, Action::AddRune) => self::kubernetes::add_rune().await?,
+                (Self::Kubernetes, Action::RemoveRune) => self::kubernetes::remove_rune().await?,
             }
 
             Ok(Completed::from_active(

@@ -1,4 +1,4 @@
-use liburuz::Rune;
+use liburuz::rune::Rune;
 
 #[test]
 fn parse_rune() {

@@ -1,9 +1,5 @@
-use crate::error::Error;
 use serde_derive::{Deserialize, Serialize};
-use serde_yaml::from_slice;
 use std::collections::HashMap;
-use std::fs::read;
-use std::path::PathBuf;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
@@ -74,10 +70,4 @@ pub struct Metadata {
     pub dependencies: HashMap<String, String>,
     pub react: Option<String>,
     pub config: HashMap<String, ConfigItem>,
-}
-
-impl Metadata {
-    pub fn from_slice<P: Into<PathBuf>>(path: P) -> Result<Self, Error> {
-        Ok(from_slice(&read(path.into())?)?)
-    }
 }

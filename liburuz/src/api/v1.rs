@@ -1,14 +1,13 @@
-use crate::error::Error;
-use async_std::task;
+//! V1 API
+
+use crate::clouds::Cloud;
+use crate::server::model;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::Duration;
 use uuid::Uuid;
 
-// Model stuff
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum Action {
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub enum ActionKind {
     CreateModel { name: String },
     ConfigureModel { foo: String },
     DestroyModel,
@@ -16,25 +15,27 @@ pub enum Action {
     RemoveRune,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct Queued {
+impl ActionKind {
+    fn from_action(a: &model::Action) -> Self {
+        match a {
+            model::Action::CreateModel { name } => ActionKind::CreateModel { name: name.clone() },
+            model::Action::ConfigureModel { foo } => {
+                ActionKind::ConfigureModel { foo: foo.clone() }
+            }
+            model::Action::DestroyModel => ActionKind::DestroyModel,
+            model::Action::AddRune => ActionKind::AddRune,
+            model::Action::RemoveRune => ActionKind::RemoveRune,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+pub struct Action {
     pub id: Uuid,
-    pub action: Action,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct Active {
-    id: Uuid,
-    action: Action,
-    started: u128,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct Completed {
-    id: Uuid,
-    action: Action,
-    started: u128,
-    completed: u128,
+    pub kind: ActionKind,
+    pub queued: u128,
+    pub started: Option<u128>,
+    pub completed: Option<u128>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -43,18 +44,20 @@ pub struct ModelConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub enum ModelStatus {
-    Requested,
-    Creating,
-    Ready,
-    Configuring,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct ModelState {
-    pub status: ModelStatus,
     pub config: ModelConfig,
     pub runes: HashMap<String, String>,
+}
+
+impl ModelState {
+    fn from_state(s: &model::ModelState) -> Self {
+        Self {
+            config: ModelConfig {
+                foo: s.config.foo.clone(),
+            },
+            runes: s.runes.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -62,98 +65,56 @@ pub struct Model {
     pub id: String,
     pub name: String,
     pub cloud: String,
-    pub backlog: Vec<Queued>,
-    pub active: Option<Active>,
-    pub history: Vec<Completed>,
+    pub actions: Vec<Action>,
     pub state: ModelState,
 }
 
-// Actions
+impl Model {
+    pub fn from_model(model: &model::Model) -> Self {
+        let mut actions: Vec<_> = model
+            .history
+            .iter()
+            .map(|h| Action {
+                id: h.id,
+                kind: ActionKind::from_action(&h.action),
+                queued: h.queued,
+                started: Some(h.started),
+                completed: Some(h.completed),
+            })
+            .collect();
+        if let Some(a) = &model.active {
+            actions.push(Action {
+                id: a.id,
+                kind: ActionKind::from_action(&a.action),
+                queued: a.queued,
+                started: Some(a.started),
+                completed: None,
+            });
+        }
+        actions.extend(model.backlog.iter().map(|h| Action {
+            id: h.id,
+            kind: ActionKind::from_action(&h.action),
+            queued: h.queued,
+            started: None,
+            completed: None,
+        }));
+        Self {
+            id: model.id.to_string(),
+            name: model.name.clone(),
+            cloud: format!("{:?}", model.cloud),
+            actions,
+            state: ModelState::from_state(&model.get_state()),
+        }
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ModelCreate {
     pub name: String,
-    pub cloud: String,
+    pub cloud: Cloud,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ModelConfigure {
     pub foo: String,
-}
-
-// Client
-
-pub struct Client {
-    endpoint: String,
-    req: reqwest::Client,
-}
-
-impl Client {
-    pub fn new<S: Into<String>>(endpoint: S) -> Self {
-        Self {
-            endpoint: endpoint.into(),
-            req: reqwest::Client::new(),
-        }
-    }
-
-    pub async fn create_model(&self, args: &ModelCreate) -> Result<Model, Error> {
-        Ok(self
-            .req
-            .post(&format!("{}/api/v1/models", self.endpoint))
-            .json(args)
-            .send()
-            .await?
-            .json()
-            .await?)
-    }
-    pub async fn get_model(&self, model_id: &str) -> Result<Model, Error> {
-        Ok(self
-            .req
-            .post(&format!("{}/api/v1/models/{}", self.endpoint, model_id))
-            .send()
-            .await?
-            .json()
-            .await?)
-    }
-
-    pub async fn configure_model(
-        &self,
-        model_id: &str,
-        args: &ModelConfigure,
-    ) -> Result<Uuid, Error> {
-        Ok(self
-            .req
-            .post(&format!(
-                "{}/api/v1/models/{}/config",
-                self.endpoint, model_id
-            ))
-            .json(args)
-            .send()
-            .await?
-            .json()
-            .await?)
-    }
-
-    pub async fn configure_model_wait(
-        &self,
-        model_id: &str,
-        args: &ModelConfigure,
-    ) -> Result<Model, Error> {
-        let action_id = self.configure_model(model_id, args).await.unwrap();
-        self.wait_for_action(model_id, action_id).await.unwrap();
-        self.get_model(model_id).await
-    }
-
-    pub async fn wait_for_action(&self, model_id: &str, uuid: Uuid) -> Result<(), Error> {
-        for _ in 0u32..10 {
-            let model = self.get_model(model_id).await?;
-
-            if model.history.iter().any(|h| h.id == uuid) {
-                return Ok(());
-            } else {
-                task::sleep(Duration::from_secs(1)).await;
-            }
-        }
-        Err(Error::TimeoutError(uuid))
-    }
 }

@@ -1,13 +1,11 @@
 use crate::clouds::Cloud;
-use crate::error::Error;
+use crate::server::error::Error;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::from_slice;
 use std::collections::{HashMap, VecDeque};
-use std::future::Future;
-use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub enum Action {
     CreateModel { name: String },
     ConfigureModel { foo: String },
@@ -16,26 +14,29 @@ pub enum Action {
     RemoveRune,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct Queued {
     pub id: Uuid,
     pub action: Action,
+    pub queued: u128,
 }
 
 impl Queued {
-    pub fn from_action(action: Action) -> Self {
+    pub fn from_action(action: Action, queued: u128) -> Self {
         Self {
             id: Uuid::new_v4(),
             action,
+            queued,
         }
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct Active {
-    id: Uuid,
-    action: Action,
-    started: u128,
+    pub id: Uuid,
+    pub action: Action,
+    pub queued: u128,
+    pub started: u128,
 }
 
 impl Active {
@@ -43,6 +44,7 @@ impl Active {
         Self {
             id: queued.id,
             action: queued.action,
+            queued: queued.queued,
             started,
         }
     }
@@ -52,12 +54,13 @@ impl Active {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct Completed {
-    id: Uuid,
-    action: Action,
-    started: u128,
-    completed: u128,
+    pub id: Uuid,
+    pub action: Action,
+    pub queued: u128,
+    pub started: u128,
+    pub completed: u128,
 }
 
 impl Completed {
@@ -65,6 +68,7 @@ impl Completed {
         Self {
             id: active.id,
             action: active.action,
+            queued: active.queued,
             started: active.started,
             completed,
         }
@@ -88,6 +92,7 @@ pub enum ModelStatus {
     Creating,
     Ready,
     Configuring,
+    Destroyed,
 }
 
 impl Default for ModelStatus {
@@ -125,38 +130,22 @@ impl Model {
         }
     }
 
-    pub fn from_tree(tree: sled::Tree) -> Result<Self, Error> {
-        Ok(Self {
-            id: Uuid::from_slice(&tree.get("id")?.unwrap()[..]).unwrap(),
-            name: String::from_utf8_lossy(&tree.get("name")?.unwrap()[..]).to_string(),
-            cloud: from_slice(&tree.get("cloud")?.unwrap()[..]).unwrap(),
-            backlog: from_slice(&tree.get("backlog")?.unwrap()[..]).unwrap(),
-            active: from_slice(&tree.get("active")?.unwrap()[..]).unwrap(),
-            history: from_slice(&tree.get("history")?.unwrap()[..]).unwrap(),
-        })
-    }
-
-    pub fn get_next_task(
-        mut self,
-    ) -> Result<Option<impl Future<Output = Result<Self, Error>> + Send>, Error> {
-        match self.active {
-            Some(a) => Err(Error::ExistingActiveTask(a)),
-            None => match self.backlog.pop_front() {
-                Some(item) => Ok(Some(async move {
-                    let active = Active::from_queued(
-                        item,
-                        SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
-                            .as_nanos(),
-                    );
-                    let completed = self.cloud.handle_request(active).await?;
-                    self.history.push(completed);
-                    Ok(self)
-                })),
-                None => Ok(None),
-            },
+    pub fn from_tree(tree: &sled::Tree) -> Result<Self, Error> {
+        macro_rules! get {
+            ($attr:literal) => {
+                &tree
+                    .get($attr)?
+                    .ok_or_else(|| Error::ModelLoad(format!("Attribute {} not found", $attr)))?;
+            };
         }
+        Ok(Self {
+            id: Uuid::from_slice(get!("id"))?,
+            name: String::from_utf8_lossy(get!("name")).to_string(),
+            cloud: from_slice(get!("cloud"))?,
+            backlog: from_slice(get!("backlog"))?,
+            active: from_slice(get!("active"))?,
+            history: from_slice(get!("history"))?,
+        })
     }
 
     pub fn get_state(&self) -> ModelState {
@@ -166,10 +155,20 @@ impl Model {
             match &item.action {
                 Action::CreateModel { name: _ } => state.status = ModelStatus::Ready,
                 Action::ConfigureModel { foo } => state.config.foo = foo.clone(),
-                _ => {}
+                Action::DestroyModel => state.status = ModelStatus::Destroyed,
+                Action::AddRune => {
+                    state.runes.insert("foo".into(), "bar".into());
+                }
+                Action::RemoveRune => {
+                    state.runes.remove("foo").unwrap();
+                }
             }
         }
 
         state
+    }
+
+    pub fn get_status(&self) -> ModelStatus {
+        self.get_state().status
     }
 }

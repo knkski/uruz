@@ -1,15 +1,12 @@
 pub mod api;
-pub mod clouds;
 pub mod config;
 pub mod controller;
-pub mod db;
 pub mod error;
 pub mod model;
-pub mod traits;
 
-use crate::config::Config;
-use crate::controller::Controller;
-use crate::error::Error;
+use self::config::Config;
+use self::controller::Controller;
+use self::error::Error;
 
 use futures::join;
 

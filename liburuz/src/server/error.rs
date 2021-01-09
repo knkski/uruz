@@ -1,9 +1,11 @@
-use crate::model::Active;
+use crate::server::model::Active;
 use k8s_openapi::RequestError as K8sError;
 use kube::error::{Error as KubeError, ErrorResponse as KubeErrorResponse};
 use serde_json::Error as SerdeJsonError;
+use sled::transaction::TransactionError;
 use sled::Error as SledError;
 use std::io::Error as IOError;
+use uuid::Error as UuidError;
 
 #[derive(Debug)]
 pub enum Error {
@@ -13,6 +15,7 @@ pub enum Error {
     SledError(SledError),
     ModelLoad(String),
     ModelAlreadyExists(String),
+    ModelAlreadyDeleted(String),
     SerdeJsonError(SerdeJsonError),
     K8sError(K8sError),
     KubeError(KubeError),
@@ -53,5 +56,20 @@ impl From<KubeError> for Error {
 impl From<KubeErrorResponse> for Error {
     fn from(err: KubeErrorResponse) -> Self {
         Error::KubeErrorResponse(err)
+    }
+}
+
+impl From<UuidError> for Error {
+    fn from(err: UuidError) -> Self {
+        Error::ModelLoad(format!("Error loading UUID: {}", err))
+    }
+}
+
+impl From<TransactionError<Error>> for Error {
+    fn from(err: TransactionError<Error>) -> Self {
+        match err {
+            TransactionError::Abort(err) => err,
+            TransactionError::Storage(err) => Error::SledError(err),
+        }
     }
 }

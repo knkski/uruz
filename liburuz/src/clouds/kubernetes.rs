@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::server::error::Error;
 use k8s_openapi::api::core::v1::Namespace;
 use kube::{Api, Client};
 
@@ -28,4 +28,20 @@ pub async fn create_model(name: &str) -> Result<(), Error> {
             Err(err.into())
         }
     }
+}
+
+pub async fn configure_model() -> Result<(), Error> {
+    unimplemented!()
+}
+
+pub async fn destroy_model() -> Result<(), Error> {
+    unimplemented!()
+}
+
+pub async fn add_rune() -> Result<(), Error> {
+    unimplemented!()
+}
+
+pub async fn remove_rune() -> Result<(), Error> {
+    unimplemented!()
 }
