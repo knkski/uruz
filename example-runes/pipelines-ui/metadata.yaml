@@ -1,3 +1,4 @@
+version: 1
 name: pipelines-ui
 description: |
   Kubeflow Pipelines UI - Machine learning workflows in Kubernetes

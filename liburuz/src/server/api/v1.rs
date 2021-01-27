@@ -1,44 +1,9 @@
-use crate::api::v1::{Model as ApiModel, ModelConfigure, ModelCreate};
+use crate::api::v1;
+use crate::rune::v1::rune::Rune;
 use crate::server::controller::Controller;
 use crate::server::model::Action;
 use uuid::Uuid;
 use warp::Filter;
-
-// #[derive(Debug, Deserialize, Serialize)]
-// pub struct ApiModel {
-//     pub id: String,
-//     pub name: String,
-//     pub cloud: String,
-//     pub backlog: Vec<Queued>,
-//     pub active: Option<Active>,
-//     pub history: Vec<Completed>,
-//     pub state: ModelState,
-// }
-
-// impl ApiModel {
-//     fn from_model(model: &Model) -> Self {
-//         Self {
-//             id: model.id.to_string(),
-//             name: model.name.clone(),
-//             cloud: format!("{:?}", model.cloud),
-//             backlog: model.backlog.iter().cloned().collect(),
-//             active: model.active.clone(),
-//             history: model.history.clone(),
-//             state: model.get_state(),
-//         }
-//     }
-// }
-
-// #[derive(Debug, Deserialize, Serialize)]
-// pub struct ModelCreate {
-//     pub name: String,
-//     pub cloud: String,
-// }
-
-// #[derive(Debug, Deserialize, Serialize)]
-// pub struct ModelConfigure {
-//     pub foo: String,
-// }
 
 async fn list_models(_controller: Controller) -> Result<impl warp::Reply, warp::Rejection> {
     Ok(warp::reply::json(&vec![0u8]))
@@ -49,17 +14,17 @@ async fn get_model(
     controller: Controller,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match controller.get_model(&Uuid::parse_str(&id).unwrap()) {
-        Ok(model) => Ok(warp::reply::json(&ApiModel::from_model(&model))),
+        Ok(model) => Ok(warp::reply::json(&v1::Model::from_model(&model))),
         Err(_) => Err(warp::reject::not_found()),
     }
 }
 
 async fn create_model(
     mut controller: Controller,
-    args: ModelCreate,
+    args: v1::ModelCreate,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match controller.create_model(args.cloud, &args.name) {
-        Ok(model) => Ok(warp::reply::json(&ApiModel::from_model(&model))),
+        Ok(model) => Ok(warp::reply::json(&v1::Model::from_model(&model))),
         Err(_) => Err(warp::reject::not_found()),
     }
 }
@@ -67,7 +32,7 @@ async fn create_model(
 async fn configure_model(
     id: String,
     controller: Controller,
-    conf: ModelConfigure,
+    conf: v1::ModelConfigure,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match controller.update_model(
         &Uuid::parse_str(&id).unwrap(),
@@ -83,6 +48,18 @@ async fn delete_model(
     controller: Controller,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match controller.delete_model(&Uuid::parse_str(&id).unwrap()) {
+        Ok(id) => Ok(warp::reply::json(&id)),
+        Err(_) => Err(warp::reject::not_found()),
+    }
+}
+
+async fn add_rune(
+    id: String,
+    controller: Controller,
+    args: v1::RuneAdd,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    let rune = Rune::unzip(&args.rune).unwrap();
+    match controller.add_rune(&Uuid::parse_str(&id).unwrap(), args.name, rune) {
         Ok(id) => Ok(warp::reply::json(&id)),
         Err(_) => Err(warp::reject::not_found()),
     }
@@ -115,4 +92,9 @@ pub fn build(
             .and(warp::delete())
             .and(controller.clone())
             .and_then(delete_model))
+        .or(warp::path!("api" / "v1" / "models" / String / "rune")
+            .and(warp::post())
+            .and(controller.clone())
+            .and(warp::body::json())
+            .and_then(add_rune))
 }

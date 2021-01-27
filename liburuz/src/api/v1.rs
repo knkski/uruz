@@ -1,6 +1,7 @@
 //! V1 API
 
 use crate::clouds::Cloud;
+use crate::rune::v1::rune::Rune;
 use crate::server::model;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,8 +12,8 @@ pub enum ActionKind {
     CreateModel { name: String },
     ConfigureModel { foo: String },
     DestroyModel,
-    AddRune,
-    RemoveRune,
+    AddRune { name: String, rune: Rune },
+    RemoveRune { name: String },
 }
 
 impl ActionKind {
@@ -23,8 +24,11 @@ impl ActionKind {
                 ActionKind::ConfigureModel { foo: foo.clone() }
             }
             model::Action::DestroyModel => ActionKind::DestroyModel,
-            model::Action::AddRune => ActionKind::AddRune,
-            model::Action::RemoveRune => ActionKind::RemoveRune,
+            model::Action::AddRune { name, rune } => ActionKind::AddRune {
+                name: name.clone(),
+                rune: rune.clone(),
+            },
+            model::Action::RemoveRune { name } => ActionKind::RemoveRune { name: name.clone() },
         }
     }
 }
@@ -46,7 +50,7 @@ pub struct ModelConfig {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct ModelState {
     pub config: ModelConfig,
-    pub runes: HashMap<String, String>,
+    pub runes: HashMap<String, Rune>,
 }
 
 impl ModelState {
@@ -117,4 +121,10 @@ pub struct ModelCreate {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ModelConfigure {
     pub foo: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RuneAdd {
+    pub name: String,
+    pub rune: Vec<u8>,
 }

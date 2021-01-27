@@ -49,8 +49,10 @@ impl Cloud {
                     self::aws::configure_model().await?
                 }
                 (Self::AWS, Action::DestroyModel) => self::aws::destroy_model().await?,
-                (Self::AWS, Action::AddRune) => self::aws::add_rune().await?,
-                (Self::AWS, Action::RemoveRune) => self::aws::remove_rune().await?,
+                (Self::AWS, Action::AddRune { name, rune }) => {
+                    self::aws::add_rune(name, rune).await?
+                }
+                (Self::AWS, Action::RemoveRune { name }) => self::aws::remove_rune(name).await?,
                 (Self::Dummy, Action::CreateModel { name }) => {
                     self::dummy::create_model(name).await?
                 }
@@ -58,8 +60,12 @@ impl Cloud {
                     self::dummy::configure_model().await?
                 }
                 (Self::Dummy, Action::DestroyModel) => self::dummy::destroy_model().await?,
-                (Self::Dummy, Action::AddRune) => self::dummy::add_rune().await?,
-                (Self::Dummy, Action::RemoveRune) => self::dummy::remove_rune().await?,
+                (Self::Dummy, Action::AddRune { name, rune }) => {
+                    self::dummy::add_rune(name, rune).await?
+                }
+                (Self::Dummy, Action::RemoveRune { name }) => {
+                    self::dummy::remove_rune(name).await?
+                }
                 (Self::Kubernetes, Action::CreateModel { name }) => {
                     self::kubernetes::create_model(name).await?
                 }
@@ -69,8 +75,12 @@ impl Cloud {
                 (Self::Kubernetes, Action::DestroyModel) => {
                     self::kubernetes::destroy_model().await?
                 }
-                (Self::Kubernetes, Action::AddRune) => self::kubernetes::add_rune().await?,
-                (Self::Kubernetes, Action::RemoveRune) => self::kubernetes::remove_rune().await?,
+                (Self::Kubernetes, Action::AddRune { name, rune }) => {
+                    self::kubernetes::add_rune(name, rune).await?
+                }
+                (Self::Kubernetes, Action::RemoveRune { name }) => {
+                    self::kubernetes::remove_rune(name).await?
+                }
             }
 
             Ok(Completed::from_active(

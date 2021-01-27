@@ -1,7 +1,7 @@
 mod error;
 
 use error::Error;
-use liburuz::Rune;
+use liburuz::rune::v1::Rune;
 use std::fs::write;
 use structopt::{self, clap::AppSettings, StructOpt};
 

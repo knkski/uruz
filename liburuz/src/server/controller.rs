@@ -1,18 +1,17 @@
 use crate::clouds::Cloud;
+use crate::rune::v1::rune::Rune;
 use crate::server::error::Error;
 use crate::server::model::{Action, Active, Completed, Model, ModelStatus, Queued};
 use async_std::task;
 use serde_json::{from_slice, to_vec};
 use sled::transaction::abort;
-use std::collections::HashMap;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::future::Future;
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
-use std::time::Duration;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 type ModelState = (Vec<Completed>, Option<Active>, VecDeque<Queued>);
@@ -166,6 +165,17 @@ impl Controller {
         );
         self.add_to_backlog(id, queued)
     }
+
+    pub fn add_rune(&self, id: &Uuid, name: String, rune: Rune) -> Result<Uuid, Error> {
+        let queued = Queued::from_action(
+            Action::AddRune { name, rune },
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos(),
+        );
+        self.add_to_backlog(id, queued)
+    }
 }
 
 impl Future for Controller {
@@ -185,10 +195,8 @@ impl Future for Controller {
                 if model.get_status() == ModelStatus::Destroyed {
                     tasks.remove(&id);
                 }
-            } else {
-                if let Ok(foo) = self.get_next_task(&id, None) {
-                    tasks.insert(id, Box::pin(*foo));
-                }
+            } else if let Ok(foo) = self.get_next_task(&id, None) {
+                tasks.insert(id, Box::pin(*foo));
             }
         }
 
@@ -196,8 +204,8 @@ impl Future for Controller {
             if let Poll::Ready(result) = task.as_mut().poll(ctx) {
                 match result {
                     Ok(completed) => {
-                        let foo = self.get_next_task(mid, completed).unwrap();
-                        *task = Box::pin(*foo);
+                        let next = self.get_next_task(mid, completed).unwrap();
+                        *task = Box::pin(*next);
                     }
                     Err(err) => {
                         panic!("{:?}", err);

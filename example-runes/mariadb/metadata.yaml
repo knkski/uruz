@@ -1,11 +1,12 @@
+version: 1
 name: mariadb
 description: |
   MariaDB - A GPLed, community-developed fork of MySQL
 
   Some long description of MariaDB
 
-repo: https://github.com/juju-solutions/bundle-kubeflow.git
-maintainers: [Juju Developers <juju@lists.ubuntu.com>]
+repo: http://github.com/my/repo
+maintainers: []
 tags:
   - database
   - k8s

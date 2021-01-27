@@ -1,4 +1,5 @@
 use crate::clouds::Cloud;
+use crate::rune::v1::rune::Rune;
 use crate::server::error::Error;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::from_slice;
@@ -10,8 +11,8 @@ pub enum Action {
     CreateModel { name: String },
     ConfigureModel { foo: String },
     DestroyModel,
-    AddRune,
-    RemoveRune,
+    AddRune { name: String, rune: Rune },
+    RemoveRune { name: String },
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
@@ -105,7 +106,7 @@ impl Default for ModelStatus {
 pub struct ModelState {
     pub status: ModelStatus,
     pub config: ModelConfig,
-    pub runes: HashMap<String, String>,
+    pub runes: HashMap<String, Rune>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -156,11 +157,11 @@ impl Model {
                 Action::CreateModel { name: _ } => state.status = ModelStatus::Ready,
                 Action::ConfigureModel { foo } => state.config.foo = foo.clone(),
                 Action::DestroyModel => state.status = ModelStatus::Destroyed,
-                Action::AddRune => {
-                    state.runes.insert("foo".into(), "bar".into());
+                Action::AddRune { name, rune } => {
+                    state.runes.insert(name.clone(), rune.clone());
                 }
-                Action::RemoveRune => {
-                    state.runes.remove("foo").unwrap();
+                Action::RemoveRune { name } => {
+                    state.runes.remove(name).unwrap();
                 }
             }
         }

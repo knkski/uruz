@@ -2,8 +2,8 @@ use futures::join;
 use liburuz::api::v1::{ActionKind, ModelConfig, ModelConfigure, ModelCreate};
 use liburuz::client::api::v1::Client;
 use liburuz::clouds::Cloud;
+use liburuz::rune::v1::Rune;
 use liburuz::server::{config::Config, start};
-use liburuz::Rune;
 use std::thread::sleep;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -30,6 +30,7 @@ fn test_main() {
     // Run tests
     rt.block_on(async { join!(test_model_config(), test_runes()) });
 }
+
 async fn test_model_config() {
     let client = Client::new(URL);
     let model = client
@@ -91,8 +92,9 @@ async fn test_runes() {
         })
         .await
         .unwrap();
-    let rune = Rune::load("../example-runes/mariadb/")
-        .unwrap()
-        .zip()
+    let rune = Rune::load("../example-runes/mariadb/").unwrap();
+    client
+        .add_rune_wait(&model.id, "mariadb", &rune)
+        .await
         .unwrap();
 }

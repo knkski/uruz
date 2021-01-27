@@ -1,3 +1,4 @@
+version: 1
 name: pipelines-api
 description: |
   Kubeflow Pipelines API - Machine learning workflows in Kubernetes

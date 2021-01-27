@@ -1,8 +1,13 @@
-use liburuz::rune::Rune;
+use liburuz::rune::v1::Rune;
 
 #[test]
 fn parse_rune() {
-    Rune::load("../example-runes/mariadb/").expect("Couldn't load mariadb rune");
-    Rune::load("../example-runes/pipelines-api/").expect("Couldn't load pipelines-api rune");
-    Rune::load("../example-runes/pipelines-ui/").expect("Couldn't load pipelines-ui rune");
+    let runes = ["mariadb", "pipelines-api", "pipelines-ui"];
+
+    for rune in &runes {
+        let loaded = Rune::load(&format!("../example-runes/{}/", rune)).unwrap();
+        let zipped = loaded.zip().unwrap();
+        let unzipped = Rune::unzip(&zipped).unwrap();
+        assert_eq!(loaded, unzipped);
+    }
 }

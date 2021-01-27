@@ -1,14 +1,14 @@
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 #[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
 pub enum SecretSource {
     Generate,
     Env { file: String },
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 #[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
 pub enum ConfigItem {
     Boolean {
@@ -37,14 +37,14 @@ pub enum ConfigItem {
     },
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Provide {
     name: String,
     interface: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Require {
     name: String,
@@ -53,9 +53,10 @@ pub struct Require {
     max: Option<u32>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Metadata {
+    pub version: String,
     pub name: String,
     pub description: String,
     pub repo: String,
