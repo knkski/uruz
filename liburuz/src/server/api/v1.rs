@@ -14,7 +14,7 @@ async fn get_model(
     controller: Controller,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match controller.get_model(&Uuid::parse_str(&id).unwrap()) {
-        Ok(model) => Ok(warp::reply::json(&v1::Model::from_model(&model))),
+        Ok(model) => Ok(warp::reply::json::<v1::Model>(&model.into())),
         Err(_) => Err(warp::reject::not_found()),
     }
 }
@@ -24,7 +24,7 @@ async fn create_model(
     args: v1::ModelCreate,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match controller.create_model(args.cloud, &args.name) {
-        Ok(model) => Ok(warp::reply::json(&v1::Model::from_model(&model))),
+        Ok(model) => Ok(warp::reply::json::<v1::Model>(&model.into())),
         Err(_) => Err(warp::reject::not_found()),
     }
 }
@@ -65,6 +65,27 @@ async fn add_rune(
     }
 }
 
+async fn configure_rune(
+    model_id: String,
+    rune_name: String,
+    controller: Controller,
+    args: v1::RuneConfigure,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    let model_id = Uuid::parse_str(&model_id).unwrap();
+    let result = controller.update_model(
+        &model_id,
+        Action::ConfigureRune {
+            name: rune_name,
+            attribute: args.attribute,
+            value: args.value,
+        },
+    );
+    match result {
+        Ok(id) => Ok(warp::reply::json(&id)),
+        Err(_) => Err(warp::reject::not_found()),
+    }
+}
+
 pub fn build(
     controller: Controller,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -92,9 +113,16 @@ pub fn build(
             .and(warp::delete())
             .and(controller.clone())
             .and_then(delete_model))
-        .or(warp::path!("api" / "v1" / "models" / String / "rune")
+        .or(warp::path!("api" / "v1" / "models" / String / "runes")
             .and(warp::post())
             .and(controller.clone())
             .and(warp::body::json())
             .and_then(add_rune))
+        .or(
+            warp::path!("api" / "v1" / "models" / String / "runes" / String / "config")
+                .and(warp::patch())
+                .and(controller.clone())
+                .and(warp::body::json())
+                .and_then(configure_rune),
+        )
 }

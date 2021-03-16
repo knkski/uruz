@@ -1,9 +1,10 @@
 use futures::join;
-use liburuz::api::v1::{ActionKind, ModelConfig, ModelConfigure, ModelCreate};
+use liburuz::api::v1::{Action, ModelConfig, ModelConfigure, ModelCreate, RuneConfigure};
 use liburuz::client::api::v1::Client;
 use liburuz::clouds::Cloud;
 use liburuz::rune::v1::Rune;
 use liburuz::server::{config::Config, start};
+use std::collections::HashMap;
 use std::thread::sleep;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -43,42 +44,76 @@ async fn test_model_config() {
 
     // Configure model
     // Starts off with the default, then ensure we change it
-    assert_eq!(model.state.config, ModelConfig { foo: "bar".into() });
+    assert_eq!(model.state.config, ModelConfig { foo: None });
 
     let model = client
-        .configure_model_wait(&model.id, &ModelConfigure { foo: "baz".into() })
+        .configure_model_wait(
+            &model.id,
+            &ModelConfigure {
+                foo: Some("bar".into()),
+            },
+        )
         .await
         .unwrap();
 
-    assert_eq!(model.state.config, ModelConfig { foo: "baz".into() });
+    assert_eq!(
+        model.state.config,
+        ModelConfig {
+            foo: Some("bar".into())
+        }
+    );
+
+    // Test two simultaneous-ish requests
     client
-        .configure_model(&model.id, &ModelConfigure { foo: "foo1".into() })
+        .configure_model(
+            &model.id,
+            &ModelConfigure {
+                foo: Some("baz1".into()),
+            },
+        )
         .await
         .unwrap();
     let action_id = client
-        .configure_model(&model.id, &ModelConfigure { foo: "foo2".into() })
+        .configure_model(
+            &model.id,
+            &ModelConfigure {
+                foo: Some("baz2".into()),
+            },
+        )
         .await
         .unwrap();
     client.wait_for_action(&model.id, action_id).await.unwrap();
     let model = client.get_model(&model.id).await.unwrap();
-    assert_eq!(model.state.config, ModelConfig { foo: "foo2".into() });
     assert_eq!(
-        model
-            .actions
-            .iter()
-            .map(|a| a.kind.clone())
-            .collect::<Vec<_>>(),
+        model.state.config,
+        ModelConfig {
+            foo: Some("baz2".into())
+        }
+    );
+    assert_eq!(
+        model.requests.iter().map(|r| &r.action).collect::<Vec<_>>(),
         vec![
-            ActionKind::ConfigureModel { foo: "baz".into() },
-            ActionKind::ConfigureModel { foo: "foo1".into() },
-            ActionKind::ConfigureModel { foo: "foo2".into() }
+            &Action::ConfigureModel {
+                foo: Some("bar".into())
+            },
+            &Action::ConfigureModel {
+                foo: Some("baz1".into())
+            },
+            &Action::ConfigureModel {
+                foo: Some("baz2".into())
+            }
         ]
     );
     client.destroy_model_wait(&model.id).await.unwrap();
 
     // After the model's destroyed, can't change it
     assert!(client
-        .configure_model_wait(&model.id, &ModelConfigure { foo: "baz".into() })
+        .configure_model_wait(
+            &model.id,
+            &ModelConfigure {
+                foo: Some("baz".into())
+            }
+        )
         .await
         .is_err());
 }
@@ -97,4 +132,32 @@ async fn test_runes() {
         .add_rune_wait(&model.id, "mariadb", &rune)
         .await
         .unwrap();
+
+    let model = client.get_model(&model.id).await.unwrap();
+    let mariadb = model.state.runes.get("mariadb").unwrap();
+    let mut expected: HashMap<String, Option<String>> = HashMap::new();
+    expected.insert("database".into(), Some("mysql-db".into()));
+    expected.insert("user".into(), Some("mysql-user".into()));
+    expected.insert("password".into(), None);
+    expected.insert("root-password".into(), None);
+    assert_eq!(mariadb.state, expected);
+
+    client
+        .configure_rune_wait(
+            &model.id,
+            "mariadb",
+            &RuneConfigure {
+                attribute: "password".into(),
+                value: "password".into(),
+            },
+        )
+        .await
+        .unwrap();
+
+    let model = client.get_model(&model.id).await.unwrap();
+    let mariadb = model.state.runes.get("mariadb").unwrap();
+    assert_eq!(
+        mariadb.state.get("password").unwrap(),
+        &Some("password".into())
+    );
 }

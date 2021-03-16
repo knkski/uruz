@@ -6,6 +6,7 @@ use crate::server::error::Error;
 use crate::server::model::{Action, Active, Completed};
 use serde_derive::{Deserialize, Serialize};
 use std::future::Future;
+use std::string::ToString;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
@@ -52,6 +53,14 @@ impl Cloud {
                 (Self::AWS, Action::AddRune { name, rune }) => {
                     self::aws::add_rune(name, rune).await?
                 }
+                (
+                    Self::AWS,
+                    Action::ConfigureRune {
+                        name,
+                        attribute,
+                        value,
+                    },
+                ) => self::aws::configure_rune(name, attribute, value).await?,
                 (Self::AWS, Action::RemoveRune { name }) => self::aws::remove_rune(name).await?,
                 (Self::Dummy, Action::CreateModel { name }) => {
                     self::dummy::create_model(name).await?
@@ -63,6 +72,14 @@ impl Cloud {
                 (Self::Dummy, Action::AddRune { name, rune }) => {
                     self::dummy::add_rune(name, rune).await?
                 }
+                (
+                    Self::Dummy,
+                    Action::ConfigureRune {
+                        name,
+                        attribute,
+                        value,
+                    },
+                ) => self::dummy::configure_rune(name, attribute, value).await?,
                 (Self::Dummy, Action::RemoveRune { name }) => {
                     self::dummy::remove_rune(name).await?
                 }
@@ -78,6 +95,14 @@ impl Cloud {
                 (Self::Kubernetes, Action::AddRune { name, rune }) => {
                     self::kubernetes::add_rune(name, rune).await?
                 }
+                (
+                    Self::Kubernetes,
+                    Action::ConfigureRune {
+                        name,
+                        attribute,
+                        value,
+                    },
+                ) => self::kubernetes::configure_rune(name, attribute, value).await?,
                 (Self::Kubernetes, Action::RemoveRune { name }) => {
                     self::kubernetes::remove_rune(name).await?
                 }
@@ -90,6 +115,16 @@ impl Cloud {
                     .unwrap()
                     .as_nanos(),
             ))
+        }
+    }
+}
+
+impl ToString for Cloud {
+    fn to_string(&self) -> String {
+        match self {
+            Cloud::AWS => "aws".into(),
+            Cloud::Dummy => "dummy".into(),
+            Cloud::Kubernetes => "kubernetes".into(),
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::api::v1::{Model, ModelConfigure, ModelCreate, RuneAdd};
+use crate::api::v1::{Model, ModelConfigure, ModelCreate, RuneAdd, RuneConfigure};
 use crate::client::error::Error;
 use crate::rune::v1::rune::Rune;
 use async_std::task;
@@ -55,12 +55,26 @@ impl Client {
     }
 
     pub async fn add_rune(&self, model_id: &str, name: &str, rune: &Rune) -> Result<Uuid, Error> {
-        self.send(Method::POST, &format!("{}/rune", model_id), |r| {
+        self.send(Method::POST, &format!("{}/runes", model_id), |r| {
             r.json(&RuneAdd {
                 name: name.into(),
                 rune: rune.zip().unwrap(),
             })
         })
+        .await
+    }
+
+    pub async fn configure_rune(
+        &self,
+        model_id: &str,
+        rune_name: &str,
+        config: &RuneConfigure,
+    ) -> Result<Uuid, Error> {
+        self.send(
+            Method::PATCH,
+            &format!("{}/runes/{}/config", model_id, rune_name),
+            |r| r.json(&config),
+        )
         .await
     }
 
@@ -91,14 +105,25 @@ impl Client {
         Ok(())
     }
 
+    pub async fn configure_rune_wait(
+        &self,
+        model_id: &str,
+        rune_name: &str,
+        config: &RuneConfigure,
+    ) -> Result<(), Error> {
+        let action_id = self.configure_rune(model_id, rune_name, config).await?;
+        self.wait_for_action(model_id, action_id).await?;
+        Ok(())
+    }
+
     pub async fn wait_for_action(&self, model_id: &str, uuid: Uuid) -> Result<(), Error> {
         for _ in 0u32..10 {
             let model = self.get_model(model_id).await?;
 
             if model
-                .actions
+                .requests
                 .iter()
-                .any(|a| a.id == uuid && a.completed.is_some())
+                .any(|r| r.id == uuid && r.completed.is_some())
             {
                 return Ok(());
             } else {

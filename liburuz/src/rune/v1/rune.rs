@@ -1,8 +1,10 @@
-use super::metadata::Metadata;
+use super::metadata::{ConfigItem, Metadata};
 use super::template::Template;
+use crate::api::v1::Rune as ApiRune;
 use crate::rune::error::Error;
 use serde_derive::{Deserialize, Serialize};
 use serde_yaml::{from_slice, to_vec};
+use std::collections::HashMap;
 use std::fs::read;
 use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
@@ -102,5 +104,30 @@ impl Rune {
             react,
         };
         Ok(rune)
+    }
+}
+
+impl Into<ApiRune> for Rune {
+    fn into(self) -> ApiRune {
+        let mut state = HashMap::new();
+
+        for (name, item) in &self.metadata.config {
+            state.insert(
+                name.clone(),
+                match item {
+                    ConfigItem::Boolean { default, .. } => Some(default.to_string()),
+                    ConfigItem::Integer { default, .. } => Some(default.to_string()),
+                    ConfigItem::String { default, .. } => Some(default.to_string()),
+                    ConfigItem::Secret { .. } => None,
+                    ConfigItem::Archive { .. } => None,
+                },
+            );
+        }
+
+        ApiRune {
+            transformers: self.transformers.clone(),
+            react: self.react.clone(),
+            state,
+        }
     }
 }

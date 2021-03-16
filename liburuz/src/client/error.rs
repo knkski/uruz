@@ -1,3 +1,4 @@
+use crate::rune::error::Error as RuneError;
 use reqwest::Error as ReqwestError;
 use serde_yaml::Error as YamlError;
 use std::io::Error as IOError;
@@ -11,6 +12,7 @@ pub enum Error {
     ZipError(ZipError),
     RequestError(ReqwestError),
     TimeoutError(Uuid),
+    RuneError(RuneError),
 }
 
 impl From<IOError> for Error {
@@ -34,5 +36,11 @@ impl From<ZipError> for Error {
 impl From<ReqwestError> for Error {
     fn from(err: ReqwestError) -> Self {
         Error::RequestError(err)
+    }
+}
+
+impl From<RuneError> for Error {
+    fn from(err: RuneError) -> Self {
+        Error::RuneError(err)
     }
 }

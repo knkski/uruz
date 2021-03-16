@@ -1,18 +1,57 @@
+use crate::api::v1 as apiv1;
 use crate::clouds::Cloud;
 use crate::rune::v1::rune::Rune;
 use crate::server::error::Error;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::from_slice;
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub enum Action {
-    CreateModel { name: String },
-    ConfigureModel { foo: String },
+    CreateModel {
+        name: String,
+    },
+    ConfigureModel {
+        foo: Option<String>,
+    },
     DestroyModel,
-    AddRune { name: String, rune: Rune },
-    RemoveRune { name: String },
+    AddRune {
+        name: String,
+        rune: Rune,
+    },
+    ConfigureRune {
+        name: String,
+        attribute: String,
+        value: String,
+    },
+    RemoveRune {
+        name: String,
+    },
+}
+
+impl Into<apiv1::Action> for Action {
+    fn into(self) -> apiv1::Action {
+        match self {
+            Action::CreateModel { name } => apiv1::Action::CreateModel { name },
+            Action::ConfigureModel { foo } => apiv1::Action::ConfigureModel { foo },
+            Action::DestroyModel => apiv1::Action::DestroyModel,
+            Action::AddRune { name, rune } => apiv1::Action::AddRune {
+                name,
+                rune: rune.into(),
+            },
+            Action::ConfigureRune {
+                name,
+                attribute,
+                value,
+            } => apiv1::Action::ConfigureRune {
+                name,
+                attribute,
+                value,
+            },
+            Action::RemoveRune { name } => apiv1::Action::RemoveRune { name },
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
@@ -76,15 +115,9 @@ impl Completed {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct ModelConfig {
-    pub foo: String,
-}
-
-impl Default for ModelConfig {
-    fn default() -> Self {
-        Self { foo: "bar".into() }
-    }
+    pub foo: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -100,13 +133,6 @@ impl Default for ModelStatus {
     fn default() -> ModelStatus {
         ModelStatus::Requested
     }
-}
-
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
-pub struct ModelState {
-    pub status: ModelStatus,
-    pub config: ModelConfig,
-    pub runes: HashMap<String, Rune>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -149,27 +175,79 @@ impl Model {
         })
     }
 
-    pub fn get_state(&self) -> ModelState {
-        let mut state: ModelState = Default::default();
+    pub fn get_status(&self) -> ModelStatus {
+        let mut status = ModelStatus::Ready;
+
+        for item in &self.history {
+            match item.action {
+                Action::CreateModel { .. } => status = ModelStatus::Ready,
+                Action::DestroyModel => status = ModelStatus::Destroyed,
+                _ => {}
+            }
+        }
+
+        status
+    }
+}
+
+impl Into<apiv1::Model> for Model {
+    fn into(self) -> apiv1::Model {
+        let mut state: apiv1::ModelState = Default::default();
 
         for item in &self.history {
             match &item.action {
-                Action::CreateModel { name: _ } => state.status = ModelStatus::Ready,
+                Action::CreateModel { .. } => state.status = apiv1::ModelStatus::Ready,
                 Action::ConfigureModel { foo } => state.config.foo = foo.clone(),
-                Action::DestroyModel => state.status = ModelStatus::Destroyed,
+                Action::DestroyModel => state.status = apiv1::ModelStatus::Destroyed,
                 Action::AddRune { name, rune } => {
-                    state.runes.insert(name.clone(), rune.clone());
+                    state.runes.insert(name.clone(), rune.clone().into());
+                }
+                Action::ConfigureRune {
+                    name,
+                    attribute,
+                    value,
+                } => {
+                    let rune = state.runes.get_mut(name).unwrap();
+                    rune.state.insert(attribute.clone(), Some(value.clone()));
                 }
                 Action::RemoveRune { name } => {
                     state.runes.remove(name).unwrap();
                 }
             }
         }
-
-        state
-    }
-
-    pub fn get_status(&self) -> ModelStatus {
-        self.get_state().status
+        let mut requests: Vec<_> = self
+            .history
+            .into_iter()
+            .map(|h| apiv1::Request {
+                id: h.id,
+                action: h.action.into(),
+                queued: h.queued,
+                started: Some(h.started),
+                completed: Some(h.completed),
+            })
+            .collect();
+        if let Some(a) = self.active {
+            requests.push(apiv1::Request {
+                id: a.id,
+                action: a.action.into(),
+                queued: a.queued,
+                started: Some(a.started),
+                completed: None,
+            });
+        }
+        requests.extend(self.backlog.into_iter().map(|h| apiv1::Request {
+            id: h.id,
+            action: h.action.into(),
+            queued: h.queued,
+            started: None,
+            completed: None,
+        }));
+        apiv1::Model {
+            id: self.id.to_string(),
+            name: self.name,
+            cloud: self.cloud.to_string(),
+            requests,
+            state,
+        }
     }
 }

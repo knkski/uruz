@@ -17,6 +17,10 @@ pub async fn add_rune(_name: &str, _rune: &Rune) -> Result<(), Error> {
     Ok(())
 }
 
+pub async fn configure_rune(_name: &str, _attr: &str, _val: &str) -> Result<(), Error> {
+    Ok(())
+}
+
 pub async fn remove_rune(_name: &str) -> Result<(), Error> {
     Ok(())
 }
