@@ -7,7 +7,7 @@ use serde_yaml::{from_slice, to_vec};
 use std::collections::HashMap;
 use std::fs::read;
 use std::io::{Cursor, Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use zip::result::ZipError;
 use zip::write::FileOptions;
 use zip::{ZipArchive, ZipWriter};
@@ -44,18 +44,18 @@ impl Rune {
         let buffer = Cursor::new(Vec::new());
         let mut writer = ZipWriter::new(buffer);
 
-        writer.start_file_from_path(Path::new("metadata.yaml"), FileOptions::default())?;
+        writer.start_file("metadata.yaml", FileOptions::default())?;
         writer.write_all(&to_vec(&self.metadata)?)?;
-        writer.start_file_from_path(Path::new("rune.yaml"), FileOptions::default())?;
+        writer.start_file("rune.yaml", FileOptions::default())?;
         writer.write_all(&to_vec(&self.template)?)?;
 
         if let Some(tfs) = &self.transformers {
-            writer.start_file_from_path(Path::new("transformers.py"), FileOptions::default())?;
+            writer.start_file("transformers.py", FileOptions::default())?;
             writer.write_all(tfs.as_bytes())?;
         }
 
         if let Some(react) = &self.react {
-            writer.start_file_from_path(Path::new("rune.py"), FileOptions::default())?;
+            writer.start_file("rune.py", FileOptions::default())?;
             writer.write_all(react.as_bytes())?;
         }
 

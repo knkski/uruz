@@ -28,7 +28,7 @@ dependencies:
 # See react_noop in rune.py
 # If this value is left unset, Juju defaults to applying the config
 # change and restarting the service with the updated configuration
-react: react_noop
+react: react_approve
 
 config:
   root-password:

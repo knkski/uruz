@@ -21,6 +21,7 @@ pub enum Error {
     KubeError(KubeError),
     KubeErrorResponse(KubeErrorResponse),
     ExistingActiveTask(Active),
+    VMInitError(String),
 }
 
 impl From<IOError> for Error {

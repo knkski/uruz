@@ -23,7 +23,7 @@ fn test_main() {
     let mut rt = Runtime::new().unwrap();
 
     // Start server
-    rt.spawn(start(config));
+    rt.spawn(start(config).unwrap());
 
     // Wait a bit for server to boot up before running tests
     sleep(Duration::from_secs(1));

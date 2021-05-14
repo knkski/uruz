@@ -4,7 +4,7 @@ use crate::rune::v1::rune::Rune;
 use crate::server::error::Error;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::from_slice;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
@@ -187,6 +187,24 @@ impl Model {
         }
 
         status
+    }
+
+    pub fn get_runes(&self) -> HashMap<&str, &Rune> {
+        let mut runes = HashMap::new();
+
+        for item in &self.history {
+            match &item.action {
+                Action::AddRune { name, rune } => {
+                    runes.insert(name.as_str(), rune);
+                }
+                Action::RemoveRune { name } => {
+                    runes.remove(name.as_str());
+                }
+                _ => {}
+            }
+        }
+
+        runes
     }
 }
 
